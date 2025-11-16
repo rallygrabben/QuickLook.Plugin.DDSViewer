@@ -1,3 +1,7 @@
+## My tweaks
+added suppport for the BC4 and BC4s formats
+original readme below:
+
 # QuickLook.Plugin.DDSViewer
 <p align="center">
     <a href="https://github.com/zhangkaihua88" alt="开发者">
