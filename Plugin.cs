@@ -89,19 +89,49 @@ namespace QuickLook.Plugin.DDSViewer
                 case Pfim.ImageFormat.R5g5b5a1:
                     format = PixelFormat.Format16bppArgb1555;
                     break;
-                case Pfim.ImageFormat.Rgb8:
-                    format = PixelFormat.Format8bppIndexed;
-                    break;
                 case Pfim.ImageFormat.R5g6b5:
                     format = PixelFormat.Format16bppRgb565;
                     break;
                 case Pfim.ImageFormat.R5g5b5:
                     format = PixelFormat.Format16bppRgb555;
                     break;
+                case Pfim.ImageFormat.Rgb8:
+                    // Check if the image is BC4 or BC4S format
+                    if (_image is Pfim.dds.Bc4Dds || _image is Pfim.dds.Bc4sDds)
+                    {
+                        // Convert single channel to grayscale RGBA
+                        format = PixelFormat.Format32bppArgb;
+                        int pixelCount = _image.Width * _image.Height;
+                        byte[] rgbaData = new byte[pixelCount * 4];
+
+                        // Push the gray pixels to each channel, fill the alpha with white (since BC4 does not support alpha)
+                        for (int i = 0; i < pixelCount && i < _image.Data.Length; i++)
+                        {
+                            int rgbaIndex = i * 4;
+                            byte grayValue = _image.Data[i];
+                            rgbaData[rgbaIndex] = grayValue;     // R
+                            rgbaData[rgbaIndex + 1] = grayValue; // G
+                            rgbaData[rgbaIndex + 2] = grayValue; // B
+                            rgbaData[rgbaIndex + 3] = 255;       // A
+                        }
+
+                        // Creates bitmap and returns it's destinationPath
+                        var grayBitmap = new Bitmap(_image.Width, _image.Height, PixelFormat.Format32bppArgb);
+                        var bitmapData = grayBitmap.LockBits(new Rectangle(0, 0, _image.Width, _image.Height),
+                            ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                        Marshal.Copy(rgbaData, 0, bitmapData.Scan0, rgbaData.Length);
+                        grayBitmap.UnlockBits(bitmapData);
+                        grayBitmap.Save(destinationPath, ImageFormat.Png);
+                        return destinationPath;
+                    }
+                    else
+                    {
+                        format = PixelFormat.Format8bppIndexed;
+                    }
+                    break;
                 case Pfim.ImageFormat.Rgba16:
                     throw new Exception("Unsupported pixel format (" + _image.Format + ")");
                 default:
-                    //Log.Logger.Warning("Image {inputPath} had unknown format {format}", path, _image.Format);
                     throw new Exception("Unsupported pixel format (" + _image.Format + ")");
             }
 
